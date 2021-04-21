@@ -6,9 +6,12 @@
 package com.aws.greengrass.util.platforms.unix;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class DarwinPlatform extends UnixPlatform {
+    protected static final String SETSID_PATH = "/usr/local/opt/util-linux/bin/setsid";
     private static String PRIVILEGED_GROUP = "wheel";
 
     private static String CREATE_USER_CMD_PREFIX = "sudo dscl . -create /Users/";
@@ -52,5 +55,22 @@ public class DarwinPlatform extends UnixPlatform {
     @Override
     public String getPrivilegedGroup() {
         return PRIVILEGED_GROUP;
+    }
+
+    @Override
+    public String[] finalDecorateCommand(String[] command) {
+        if (canUseSetsid()) {
+            String[] arr = new String[command.length + 1];
+            arr[0] = SETSID_PATH;
+            System.arraycopy(command, 0, arr, 1, command.length);
+            return arr;
+        }
+        return super.finalDecorateCommand(command);
+    }
+
+    @Override
+    protected boolean canUseSetsid() {
+        // Mac doesn't ship with setsid but it can be installed using `brew install util-linux`
+        return Files.exists(Paths.get(SETSID_PATH));
     }
 }
